@@ -22,7 +22,7 @@ class _PetFeederScreenState extends State<PetFeederScreen> {
   }
 
   Future<void> _launchCameraStream() async {
-    const String espCameraUrl = 'http://192.168.1.100:81/stream';
+    const String espCameraUrl = 'http://10.123.28.89:81/stream';
     
     final uri = Uri.parse(espCameraUrl);
     if (await canLaunchUrl(uri)) {
