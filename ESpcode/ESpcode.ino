@@ -6,6 +6,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <FirebaseClient.h>
+#include <FirebaseJson.h>   // for FirebaseJson & FirebaseJsonData
 
 // --------- CREDENTIALS (EDIT THESE) ----------
 #define WIFI_SSID       "TALALEMARA 4453"
@@ -14,13 +15,12 @@
 #define WEB_API_KEY     "AIzaSyAEtnlCSUwfOd7-q-gRlCpekltH9Rrc-9w"
 #define DATABASE_URL    "https://pet-feed-192ef-default-rtdb.europe-west1.firebasedatabase.app"
 
-#define USER_EMAIL      "talal@feeder.com"   // must match a user in Firebase Auth
-#define USER_PASS       "123456"             // that user's password
+#define USER_EMAIL      "talal@feeder.com"
+#define USER_PASS       "123456"
 // --------------------------------------------
 
 // Forward declarations
 void processData(AsyncResult &aResult);
-void processStream(AsyncResult &aResult);
 
 // Auth object
 UserAuth user_auth(WEB_API_KEY, USER_EMAIL, USER_PASS);
@@ -32,9 +32,13 @@ using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 RealtimeDatabase Database;
 
-// For periodic status updates
+// Periodic status updates
 unsigned long lastStatusSend = 0;
 const unsigned long statusInterval = 30000; // 30 seconds
+
+// Simple polling of command node
+unsigned long lastCommandCheck = 0;
+const unsigned long commandInterval = 2000; // 2 seconds
 
 void setup() {
   Serial.begin(115200);
@@ -63,44 +67,55 @@ void setup() {
 }
 
 void loop() {
-  // Keep FirebaseClient internals running
+  // Keep Firebase internals running
   app.loop();
 
   static bool dbStarted = false;
 
-  // Only start DB work once auth is ready
+  // Start DB work once auth is ready
   if (app.ready() && !dbStarted) {
     dbStarted = true;
 
-    Serial.println("Firebase app is ready, sending initial status and starting stream...");
+    Serial.println("Firebase app is ready, sending initial status...");
 
-    // Initial ONLINE status
-    FirebaseJson json;
-    json.set("online", true);
-    json.set("lastUpdate", (int)(millis() / 1000));
-    Database.set(aClient, "/devices/esp1/status", &json, processData, "set_initial_status");
+    // Build JSON status as string (not FirebaseJson pointer)
+    FirebaseJson j;
+    j.set("online", true);
+    j.set("lastUpdate", (int)(millis() / 1000));
+    String payload;
+    j.toString(payload, true);   // compact JSON string
 
-    // Start listening to commands: /devices/esp1/command
-    Database.stream(aClient, "/devices/esp1/command", processStream, "command_stream");
+    // Send initial status
+    Database.set(aClient, "/devices/esp1/status", payload, processData, "set_initial_status");
   }
 
-  // Periodic status update
   if (app.ready()) {
     unsigned long now = millis();
+
+    // Periodic status update
     if (now - lastStatusSend >= statusInterval) {
       lastStatusSend = now;
 
-      FirebaseJson json;
-      json.set("online", WiFi.status() == WL_CONNECTED);
-      json.set("lastUpdate", (int)(now / 1000));
-      Database.set(aClient, "/devices/esp1/status", &json, processData, "set_periodic_status");
+      FirebaseJson j;
+      j.set("online", WiFi.status() == WL_CONNECTED);
+      j.set("lastUpdate", (int)(now / 1000));
+      String payload;
+      j.toString(payload, true);
+
+      Database.set(aClient, "/devices/esp1/status", payload, processData, "set_periodic_status");
+    }
+
+    // Poll command node
+    if (now - lastCommandCheck >= commandInterval) {
+      lastCommandCheck = now;
+      Database.get(aClient, "/devices/esp1/command", processData, "get_command");
     }
   }
 
   delay(50);
 }
 
-// Called for normal DB operations (set, etc.)
+// Called for DB operations (set, get, etc.)
 void processData(AsyncResult &aResult) {
   if (!aResult.isResult()) return;
 
@@ -109,41 +124,52 @@ void processData(AsyncResult &aResult) {
                   aResult.uid().c_str(),
                   aResult.error().message().c_str(),
                   aResult.error().code());
-  } else if (aResult.available()) {
-    Serial.printf("Task: %s, payload: %s\n",
-                  aResult.uid().c_str(),
-                  aResult.c_str());
-  }
-}
-
-// Called when /devices/esp1/command changes
-void processStream(AsyncResult &aResult) {
-  if (!aResult.isStream()) return;
-  if (!aResult.isStreamAvailable()) return;
-
-  Serial.printf("Stream event: %s\n", aResult.c_str());
-
-  FirebaseJson data;
-  data.setJsonData(aResult.c_str());
-
-  String action;
-  if (data.get(action, "action") == 0) {
-    Serial.printf("No 'action' field in command\n");
     return;
   }
 
-  Serial.printf("Command action: %s\n", action.c_str());
+  // Log raw payload
+  Serial.printf("Task: %s, payload: %s\n",
+                aResult.uid().c_str(),
+                aResult.c_str());
 
-  if (action == "FEEDNOW") {
-    // TODO: your feeder GPIO here
-    // digitalWrite(FEED_PIN, HIGH);
-    // delay(1000);
-    // digitalWrite(FEED_PIN, LOW);
-    Serial.println("Feeding now!");
+  // If this was a command read, parse it
+  if (aResult.uid() == "get_command") {
+    // Expect JSON like: {"action":"FEEDNOW"}
+    FirebaseJson data;
+    data.setJsonData(aResult.c_str());
 
-    // Clear command after handling
-    FirebaseJson clearJson;
-    clearJson.set("action", "");
-    Database.set(aClient, "/devices/esp1/command", &clearJson, processData, "clear_command");
+    FirebaseJsonData result;
+    String path = "action";
+
+    if (data.get(result, path)) {   // new API: get(FirebaseJsonData&, path)
+      if (result.typeNum == FirebaseJson::JSON_STRING) {
+        String action = result.to<String>();
+        Serial.printf("Command action: %s\n", action.c_str());
+
+        if (action == "FEEDNOW") {
+          // TODO: your feeder GPIO here
+          // digitalWrite(FEED_PIN, HIGH);
+          // delay(1000);
+          // digitalWrite(FEED_PIN, LOW);
+          Serial.println("Feeding now!");
+
+          // Clear command after handling
+          FirebaseJson clearJson;
+          clearJson.set("action", "");
+          String clearPayload;
+          clearJson.toString(clearPayload, true);
+
+          Database.set(aClient,
+                       "/devices/esp1/command",
+                       clearPayload,
+                       processData,
+                       "clear_command");
+        }
+      } else {
+        Serial.println("Field 'action' exists but is not a string");
+      }
+    } else {
+      Serial.println("No 'action' field in command");
+    }
   }
 }
