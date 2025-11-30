@@ -67,7 +67,7 @@ The **Smart Feeder** is an intelligent hub for your pet's care, engineered for r
 - Speaker for notifications  
 
 **Software Layer**  
-- **Mobile App**: Flutter (cross-platform)  
+- **Mobile App**: Flutter   
 - **Backend**: Firebase Authentication & Realtime Database  
 - **AI / ML**: Python + OpenCV for pet detection and consumption tracking  
 
@@ -88,12 +88,12 @@ The **Smart Feeder** is an intelligent hub for your pet's care, engineered for r
 **Hardware**  
 - ESP32 / ESP32-CAM  
 - Servo Motor  
-- Load Cell (HX711)  
+- Load Cell   
 
 **Software**  
 - Flutter (Mobile App)  
 - Firebase (Auth & Realtime Database)  
-- Python + OpenCV (AI / ML Logic)  
+- Python + OpenCV ( ML Logic)  
 
 ---
 
