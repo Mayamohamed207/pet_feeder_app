@@ -3,12 +3,13 @@
 #define ENABLE_DATABASE
 
 #include <Arduino.h>
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
 #include <FirebaseClient.h>
-#include <FirebaseJson.h>   // for FirebaseJson & FirebaseJsonData
+#include <FirebaseJson.h>     
+#include <time.h>             
 
-// --------- CREDENTIALS (EDIT THESE) ----------
+// --------- CREDENTIALS ----------
 #define WIFI_SSID       "TALALEMARA 4453"
 #define WIFI_PASSWORD   "HabibaElSabb"
 
@@ -17,34 +18,33 @@
 
 #define USER_EMAIL      "talal@feeder.com"
 #define USER_PASS       "123456"
-// --------------------------------------------
+
+// GPIO Pin for Feeder
+#define FEED_PIN D1 
 
 // Forward declarations
 void processData(AsyncResult &aResult);
 
-// Auth object
 UserAuth user_auth(WEB_API_KEY, USER_EMAIL, USER_PASS);
-
-// Firebase components
 FirebaseApp app;
 WiFiClientSecure ssl_client;
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 RealtimeDatabase Database;
 
-// Periodic status updates
 unsigned long lastStatusSend = 0;
 const unsigned long statusInterval = 30000; // 30 seconds
 
-// Simple polling of command node
 unsigned long lastCommandCheck = 0;
-const unsigned long commandInterval = 2000; // 2 seconds
+// FIX 1: Increased to 10 seconds to stop "-118 cancelled" errors
+const unsigned long commandInterval = 10000; 
 
 void setup() {
   Serial.begin(115200);
+  pinMode(FEED_PIN, OUTPUT);
+  digitalWrite(FEED_PIN, LOW); 
   delay(1000);
 
-  // -------- WiFi ----------
   Serial.println("Connecting to Wi-Fi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -52,124 +52,83 @@ void setup() {
     delay(300);
   }
   Serial.println("\nWiFi connected");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+  
+  ssl_client.setInsecure(); 
 
-  // -------- TLS client ----
-  ssl_client.setInsecure();               // for testing only
-  ssl_client.setConnectionTimeout(1000);
-  ssl_client.setHandshakeTimeout(5);
-
-  // -------- Firebase app ---
   initializeApp(aClient, app, getAuth(user_auth), processData, "authTask");
   app.getApp<RealtimeDatabase>(Database);
   Database.url(DATABASE_URL);
 }
 
 void loop() {
-  // Keep Firebase internals running
   app.loop();
 
   static bool dbStarted = false;
 
-  // Start DB work once auth is ready
   if (app.ready() && !dbStarted) {
     dbStarted = true;
-
-    Serial.println("Firebase app is ready, sending initial status...");
-
-    // Build JSON status as string (not FirebaseJson pointer)
     FirebaseJson j;
     j.set("online", true);
     j.set("lastUpdate", (int)(millis() / 1000));
     String payload;
-    j.toString(payload, true);   // compact JSON string
-
-    // Send initial status
-    Database.set(aClient, "/devices/esp1/status", payload, processData, "set_initial_status");
+    j.toString(payload, true);
+    Database.set(aClient, "/devices/esp1/status", object_t(payload), processData, "initial_status");
   }
 
   if (app.ready()) {
     unsigned long now = millis();
 
-    // Periodic status update
+    // 1. Status Update
     if (now - lastStatusSend >= statusInterval) {
       lastStatusSend = now;
-
       FirebaseJson j;
       j.set("online", WiFi.status() == WL_CONNECTED);
       j.set("lastUpdate", (int)(now / 1000));
       String payload;
       j.toString(payload, true);
-
-      Database.set(aClient, "/devices/esp1/status", payload, processData, "set_periodic_status");
+      Database.set(aClient, "/devices/esp1/status", object_t(payload), processData, "periodic_status");
     }
 
-    // Poll command node
+    // 2. Check Command (Slower now)
     if (now - lastCommandCheck >= commandInterval) {
       lastCommandCheck = now;
+      // We read the command node
       Database.get(aClient, "/devices/esp1/command", processData, "get_command");
     }
   }
-
-  delay(50);
+  
+  delay(100); 
 }
 
-// Called for DB operations (set, get, etc.)
 void processData(AsyncResult &aResult) {
   if (!aResult.isResult()) return;
 
-  if (aResult.isError()) {
-    Serial.printf("Error task: %s, msg: %s, code: %d\n",
-                  aResult.uid().c_str(),
-                  aResult.error().message().c_str(),
-                  aResult.error().code());
-    return;
-  }
+  // Print raw data for debugging
+  Serial.printf("Received: %s\n", aResult.c_str());
 
-  // Log raw payload
-  Serial.printf("Task: %s, payload: %s\n",
-                aResult.uid().c_str(),
-                aResult.c_str());
+  // FIX 2: ROBUST STRING SCANNING
+  // Instead of checking UID or parsing complex JSON, we just look for the text.
+  String data = aResult.c_str();
 
-  // If this was a command read, parse it
-  if (aResult.uid() == "get_command") {
-    // Expect JSON like: {"action":"FEEDNOW"}
-    FirebaseJson data;
-    data.setJsonData(aResult.c_str());
+  // Check if the data contains "FEED_NOW" (Using the underscore matching your logs)
+  if (data.indexOf("FEED_NOW") > -1) {
+    
+    Serial.println(">>> FEED COMMAND DETECTED! <<<");
+    
+    // Run Motor
+    digitalWrite(FEED_PIN, HIGH);
+    delay(1000);  
+    digitalWrite(FEED_PIN, LOW);
+    
+    Serial.println("Fed successfully. Clearing command...");
 
-    FirebaseJsonData result;
-    String path = "action";
-
-    if (data.get(result, path)) {   // new API: get(FirebaseJsonData&, path)
-      if (result.typeNum == FirebaseJson::JSON_STRING) {
-        String action = result.to<String>();
-        Serial.printf("Command action: %s\n", action.c_str());
-
-        if (action == "FEEDNOW") {
-          // TODO: your feeder GPIO here
-          // digitalWrite(FEED_PIN, HIGH);
-          // delay(1000);
-          // digitalWrite(FEED_PIN, LOW);
-          Serial.println("Feeding now!");
-
-          // Clear command after handling
-          FirebaseJson clearJson;
-          clearJson.set("action", "");
-          String clearPayload;
-          clearJson.toString(clearPayload, true);
-
-          Database.set(aClient,
-                       "/devices/esp1/command",
-                       clearPayload,
-                       processData,
-                       "clear_command");
-        }
-      } else {
-        Serial.println("Field 'action' exists but is not a string");
-      }
-    } else {
-      Serial.println("No 'action' field in command");
-    }
+    // Clear the command so it doesn't feed again
+    FirebaseJson clearJson;
+    clearJson.set("action", "");
+    String clearPayload;
+    clearJson.toString(clearPayload, true);
+    
+    // We use a different task name so we don't trigger the feeder on the clear confirmation
+    Database.set(aClient, "/devices/esp1/command", object_t(clearPayload), processData, "clear_done");
   }
 }
