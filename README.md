@@ -36,23 +36,22 @@ The **Smart Feeder** is an intelligent hub for your pet's care, engineered for r
   <tr>
     <td align="center">
      Login Screen <br>
-      <img src="assets/viewers/login_screen.png" alt="Login Screen" width="300">
+      <img src="assets/viewers/login_screen.png" alt="Login Screen" width="1000">
     </td>
     <td align="center">
       Home Screen<br>
-      <img src="assets/viewers/home_screen.png" alt="Home Screen" width="300">
+      <img src="assets/viewers/home_screen.png" alt="Home Screen" width="1000">
     </td>
-  </tr>
-  <tr>
-    <td align="center">
+     <td align="center">
       Feeding History<br>
-      <img src="assets/viewers/history_screen.png" alt="History Screen" width="300">
+      <img src="assets/viewers/history_screen.png" alt="History Screen" width="960">
     </td>
     <td align="center">
       Feed Pet Screen<br>
-      <img src="assets/viewers/feed_pet_screen.png" alt="Feed Pet Screen" width="300">
+      <img src="assets/viewers/feed_pet_screen.png" alt="Feed Pet Screen" width="1000">
     </td>
   </tr>
+  
 </table>
 
 
