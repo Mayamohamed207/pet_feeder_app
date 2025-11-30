@@ -1,6 +1,6 @@
 # Pet Paradise : A Smart Pet Feeder 🐾
 
-An intelligent IoT-enabled pet feeding system designed to ensure your pet is fed on time, track consumption, and provide real-time monitoring. Built for pet owners with busy schedules, frequent travelers, or disabilities, this solution combines hardware, mobile apps and AI for reliable and automated pet care.
+An intelligent IoT-enabled pet feeding system designed to ensure your pet is fed on time, track consumption, and provide real-time monitoring. Built for pet owners with busy schedules, frequent travelers, or disabilities, this solution combines hardware, mobile apps, and AI for reliable and automated pet care.
 
 ---
 
@@ -31,10 +31,37 @@ The **Smart Feeder** is an intelligent hub for your pet's care, engineered for r
 
 ---
 
+## App Screens
+<table>
+  <tr>
+    <td align="center">
+     Login Screen <br>
+      <img src="assets/viewers/login_screen.png" alt="Login Screen" width="300">
+    </td>
+    <td align="center">
+      Home Screen<br>
+      <img src="assets/viewers/home_screen.png" alt="Home Screen" width="300">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      Feeding History<br>
+      <img src="assets/viewers/history_screen.png" alt="History Screen" width="300">
+    </td>
+    <td align="center">
+      Feed Pet Screen<br>
+      <img src="assets/viewers/feed_pet_screen.png" alt="Feed Pet Screen" width="300">
+    </td>
+  </tr>
+</table>
+
+
+---
+
 ## System Architecture
 
 **Device Layer**  
-- ESP32-CAM 
+- ESP32-CAM  
 - Servo Motor for dispensing  
 - Load Cell for food weight measurement  
 - Speaker for notifications  
@@ -67,6 +94,8 @@ The **Smart Feeder** is an intelligent hub for your pet's care, engineered for r
 - Flutter (Mobile App)  
 - Firebase (Auth & Realtime Database)  
 - Python + OpenCV (AI / ML Logic)  
+
+---
 
 ## Installation
 
