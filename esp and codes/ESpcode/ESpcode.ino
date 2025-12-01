@@ -20,7 +20,6 @@
 #define USER_PASS       "123456"
 
 // --- USER CONFIGURATION ---
-// Validated against your JSON structure
 #define TARGET_UID      "Mdnxn4hW6vcW7f1iKIARPpm8kaH2" 
 
 // Path to listen for App Commands: /users/{uid}/commands/dispenseNow
@@ -30,7 +29,7 @@ String userCommandPath = "/users/" + String(TARGET_UID) + "/commands/dispenseNow
 String deviceStatusPath = "/devices/esp1/command";
 
 // GPIO Pin for Feeder
-#define FEED_PIN D1 
+#define FEED_PIN D2 
 
 // Forward declarations
 void processData(AsyncResult &aResult);
@@ -46,7 +45,9 @@ unsigned long lastStatusSend = 0;
 const unsigned long statusInterval = 30000; // 30 seconds
 
 unsigned long lastCommandCheck = 0;
-const unsigned long commandInterval = 5000; // Check every 5 seconds
+// CHANGED: Increased to 10 seconds to stop "-118 cancelled" errors
+// This gives the ESP8266 enough time to finish SSL negotiation before starting again.
+const unsigned long commandInterval = 10000; 
 
 void setup() {
   Serial.begin(115200);
@@ -111,6 +112,7 @@ void loop() {
     // 3. Poll Command (Reads from User Path)
     if (now - lastCommandCheck >= commandInterval) {
       lastCommandCheck = now;
+      // We read the command node using GET (Polling)
       Database.get(aClient, userCommandPath, processData, "check_feed");
     }
   }
@@ -129,14 +131,10 @@ void processData(AsyncResult &aResult) {
 
   // DEBUG HELP: If data is empty, warn the user
   if (data.length() == 0 || data == "null") {
-    if (taskName.startsWith("task_") || taskName == "check_feed") {
-       Serial.println(">>> WARNING: Received EMPTY data. The path might be wrong or empty in Firebase.");
-    }
     return;
   }
 
   // 1. Check for "pending" status in ANY task result
-  // We removed the 'if uid == check_feed' restriction to fix the random task ID issue
   if (data.indexOf("pending") > -1) {
     
     Serial.println(">>> APP REQUESTED FEEDING! <<<");
