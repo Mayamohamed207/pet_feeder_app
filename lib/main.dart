@@ -18,7 +18,7 @@ class PetParadiseApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pet Paradise',
-      theme: AppTheme.modernTheme,
+      theme: AppTheme.mainTheme,
       initialRoute: '/login',
       routes: {
         '/login': (context) => LoginScreen(),

@@ -6,35 +6,35 @@ version: 1.0.0+1
 environment:
   sdk: ">=3.7.0 <4.0.0"
 
-
 dependencies:
   flutter:
     sdk: flutter
-
+  
   # UI & Icons
   cupertino_icons: ^1.0.6
   google_fonts: ^6.3.2
   flutter_svg: ^2.2.3
-
-  
   
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   firebase_database: ^11.1.4
-
+  
   # State Management
   provider: ^6.1.5+1
-
+  
   # Networking
   http: ^1.6.0
   dio: ^5.9.0
-
   url_launcher: ^6.3.0
-
+  
   # Local Storage
   shared_preferences: ^2.5.3
-
+  
+  # TFLite & Image Processing
+  tflite_flutter: ^0.10.4
+  image: ^4.0.17
+  
   # Utilities
   intl: ^0.20.2
   flutter_local_notifications: ^19.5.0
@@ -43,7 +43,7 @@ dependencies:
   shimmer: ^3.0.0
   cached_network_image: ^3.4.1
   image_picker: ^1.2.1
-
+  
   # UI Components
   flutter_slidable: ^4.0.3
   animated_bottom_navigation_bar: ^1.4.0
@@ -55,6 +55,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/
+    - assets/models/

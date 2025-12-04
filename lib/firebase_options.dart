@@ -26,6 +26,6 @@ class DefaultFirebaseOptions {
     projectId: "pet-feed-192ef",
     storageBucket: "pet-feed-192ef.firebasestorage.app",
     messagingSenderId: "631795940534",
-    appId: "1:631795940534:android:YOUR_ANDROID_APP_ID", // Add this from Firebase Console
+    appId: "1:631795940534:android:YOUR_ANDROID_APP_ID", 
   );
 }

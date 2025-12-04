@@ -10,7 +10,7 @@ class AppTheme {
   static const Color gradientStart = Color(0xFF00D4FF);
   static const Color gradientEnd = Color.fromARGB(255, 13, 174, 115);
   
-  static ThemeData modernTheme = ThemeData(
+  static ThemeData mainTheme = ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: oceanBlue, 
       brightness: Brightness.light,
